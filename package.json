@@ -1,0 +1,9 @@
+{
+  "name": "mbti-quiz",
+  "version": "1.0.0",
+  "description": "30 題 MBTI 自評網站，結果說明對應 MBTI_16人格特質總覽",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
