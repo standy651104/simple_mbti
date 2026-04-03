@@ -110,9 +110,10 @@ function renderQuiz(root, answers, onChange) {
   root.innerHTML = '';
   const form = document.createElement('div');
   form.className = 'quiz-form';
-  QUESTIONS.forEach((q) => {
+  QUESTIONS.forEach((q, i) => {
     const block = document.createElement('fieldset');
     block.className = 'question-block';
+    block.style.setProperty('--i', String(i));
     const legend = document.createElement('legend');
     legend.textContent = `第 ${q.id} 題`;
     block.appendChild(legend);
@@ -148,25 +149,60 @@ function renderQuiz(root, answers, onChange) {
   root.appendChild(form);
 }
 
+function pct(sum, max) {
+  return max > 0 ? Math.round((sum / max) * 100) : 0;
+}
+
 function renderResult(container, result, typeInfo) {
   const { code, ei, sn, tf, jp, borderline } = result;
   const t = typeInfo[code];
+  const family = t && t.family ? t.family : 'default';
   const borderNote =
     borderline && borderline.length
       ? `<p class="borderline-note">部分維度分數接近中線，結果僅供參考，實際可能介於兩端之間。</p>`
       : '';
+  const imgAlt = t ? `${t.nickname}（${code}）類型插圖` : `${code} 類型插圖`;
 
   container.innerHTML = `
-    <div class="result-card">
-      <p class="result-label">你的 MBTI 類型</p>
-      <h2 class="result-code">${code}</h2>
-      <p class="result-nickname">${t ? `「${t.nickname}」` : ''} · ${t ? t.familyName : ''}（${t ? t.family : ''}）</p>
+    <div class="result-card result-card--${family}">
+      <div class="result-visual">
+        <div class="result-visual-ring"></div>
+        <img
+          class="type-illustration"
+          src="/images/mbti/${code}.svg"
+          width="220"
+          height="220"
+          alt="${imgAlt}"
+          decoding="async"
+        />
+      </div>
+      <div class="result-head">
+        <p class="result-label">你的 MBTI 類型</p>
+        <h2 class="result-code">${code}</h2>
+        <p class="result-nickname">${t ? `「${t.nickname}」` : ''} · ${t ? t.familyName : ''}（${t ? t.family : ''}）</p>
+      </div>
       ${borderNote}
       <div class="result-scores">
-        <div class="score-bar"><span>能量（E/I）</span><span>E ${ei.sumFirst} / ${ei.max} → ${ei.letter}</span></div>
-        <div class="score-bar"><span>資訊（S/N）</span><span>S ${sn.sumFirst} / ${sn.max} → ${sn.letter}</span></div>
-        <div class="score-bar"><span>決策（T/F）</span><span>T ${tf.sumFirst} / ${tf.max} → ${tf.letter}</span></div>
-        <div class="score-bar"><span>生活風格（J/P）</span><span>J ${jp.sumFirst} / ${jp.max} → ${jp.letter}</span></div>
+        <div class="score-row">
+          <span class="score-row-label">能量（E/I）</span>
+          <div class="score-track" aria-hidden="true"><div class="score-fill" style="width:${pct(ei.sumFirst, ei.max)}%"></div></div>
+          <span class="score-row-value">E ${ei.sumFirst} / ${ei.max} → <strong>${ei.letter}</strong></span>
+        </div>
+        <div class="score-row">
+          <span class="score-row-label">資訊（S/N）</span>
+          <div class="score-track" aria-hidden="true"><div class="score-fill" style="width:${pct(sn.sumFirst, sn.max)}%"></div></div>
+          <span class="score-row-value">S ${sn.sumFirst} / ${sn.max} → <strong>${sn.letter}</strong></span>
+        </div>
+        <div class="score-row">
+          <span class="score-row-label">決策（T/F）</span>
+          <div class="score-track" aria-hidden="true"><div class="score-fill" style="width:${pct(tf.sumFirst, tf.max)}%"></div></div>
+          <span class="score-row-value">T ${tf.sumFirst} / ${tf.max} → <strong>${tf.letter}</strong></span>
+        </div>
+        <div class="score-row">
+          <span class="score-row-label">生活風格（J/P）</span>
+          <div class="score-track" aria-hidden="true"><div class="score-fill" style="width:${pct(jp.sumFirst, jp.max)}%"></div></div>
+          <span class="score-row-value">J ${jp.sumFirst} / ${jp.max} → <strong>${jp.letter}</strong></span>
+        </div>
       </div>
       ${
         t
@@ -198,12 +234,21 @@ function init() {
   const resultRoot = document.getElementById('resultRoot');
   const btnSubmit = document.getElementById('btnSubmit');
   const btnReset = document.getElementById('btnReset');
-  const progress = document.getElementById('progress');
+  const progressLabel = document.getElementById('progressLabel');
+  const progressFill = document.getElementById('progressFill');
+  const progressBar = document.getElementById('progressBar');
 
   function updateProgress() {
     const done = QUESTIONS.filter((q) => answers[q.id] != null).length;
-    progress.textContent = `已作答 ${done} / ${QUESTIONS.length}`;
-    btnSubmit.disabled = done < QUESTIONS.length;
+    const total = QUESTIONS.length;
+    const pctVal = total > 0 ? Math.round((done / total) * 100) : 0;
+    if (progressLabel) progressLabel.textContent = `已作答 ${done} / ${total}`;
+    if (progressFill) progressFill.style.width = `${pctVal}%`;
+    if (progressBar) {
+      progressBar.setAttribute('aria-valuenow', String(done));
+      progressBar.setAttribute('aria-valuemax', String(total));
+    }
+    btnSubmit.disabled = done < total;
   }
 
   renderQuiz(quizRoot, answers, updateProgress);
